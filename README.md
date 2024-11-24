@@ -7,7 +7,7 @@ As an example I have created the Earth and the Moon scaled down. The X and Y axi
 
 ![alt text](https://github.com/WeasalCrafter/Particle-Gravitation/blob/main/img/earth-moon.png?raw=true)
 
-[![Watch the video](https://WeasalCrafter/Particle-Gravitation/blob/main/img/thumbnail.png)](WeasalCrafter/Particle-Gravitation/blob/main/img/earth-moon.mp4)
+[![Watch the video](https://github.com/WeasalCrafter/Particle-Gravitation/blob/main/img/thumbnail.png)](https://github.com/WeasalCrafter/Particle-Gravitation/blob/main/img/earth-moon.mp4)
 
 
 
