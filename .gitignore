@@ -1,1 +1,23 @@
-/target
+# Rust-specific ignores
+/target/            # Rust build directory
+**/*.rs.bk          # Rust backup files (if applicable)
+
+# IntelliJ IDEA-specific ignores
+/.idea/             # IntelliJ project settings
+*.iml               # Module files
+
+# Logs and temporary files
+*.log               # Log files
+*.tmp               # Temporary files
+*.swp               # Swap files created by editors
+.DS_Store           # macOS system file
+Thumbs.db           # Windows system file
+
+# Output files
+output.html         # If generated dynamically
+
+# Node-specific (if using npm or Yarn in the project)
+/node_modules/      # Node.js modules directory
+
+# Dependency lock files (optional, based on your workflow)
+/Cargo.lock         # Optional if you do not want to track this
