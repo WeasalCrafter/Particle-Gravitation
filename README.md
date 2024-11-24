@@ -5,10 +5,8 @@ This Rust project simulates the force of gravity based on Newton's law of gravit
 
 As an example I have created the Earth and the Moon scaled down. The X and Y axis represent the objects position in a 2D plane and the positions update over time.
 
-![alt text](https://github.com/WeasalCrafter/Particle-Gravitation/blob/main/img/thumbnail.png?raw=true)
-
-
+<img src="./img/thumbnail.png" width="400">
 
 ### Dependencies
 
-This project uses the macroquad library to display the output seen above.
+This project uses the <b><u>macroquad</u></b> library to display the output seen above.
