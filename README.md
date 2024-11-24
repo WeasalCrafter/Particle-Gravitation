@@ -7,6 +7,8 @@ As an example I have created the Earth and the Moon scaled down. The X and Y axi
 
 <img src="./img/thumbnail.png" width="400">
 
+Features planned for the future include collisions and more interaction with the program as it is running.
+
 ### Dependencies
 
 This project uses the <b><u>macroquad</u></b> library to display the output seen above.

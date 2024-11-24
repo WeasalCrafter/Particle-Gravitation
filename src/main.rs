@@ -1,9 +1,9 @@
 use macroquad::prelude::*;
+use ::rand::prelude::{thread_rng,Rng}; // Import rand prelude for RNG
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::f64::consts::PI;
 
 static PARTICLE_ID_COUNTER: AtomicI32 = AtomicI32::new(1);
-static DT: f64 = 500.0; // Time increment
 
 fn window_conf() -> Conf {
     Conf {
@@ -27,10 +27,13 @@ struct Particle {
 impl Particle {
     fn new(initial_position: [f64; 2], initial_velocity: [f64; 2], mass: f64, time_step: f64) -> Self {
         let id = PARTICLE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        println!("Particle {} initial: x={:.2} y={:.2} ", id, initial_position[0], initial_position[1]);
 
         let mut previous_position = [initial_position[0], initial_position[1]];
         previous_position[0] -= initial_velocity[0] * time_step;
         previous_position[1] -= initial_velocity[1] * time_step;
+
+        let offset = 30.0 + id as f32 * 15.0;
 
         Particle {
             id,
@@ -42,13 +45,13 @@ impl Particle {
         }
     }
 
-    fn update(&mut self) {
+    fn update(&mut self, delta_t: f64) {
         self.acceleration[0] = self.force[0] / self.mass;
         self.acceleration[1] = self.force[1] / self.mass;
 
         let mut new_position = [0.0, 0.0];
-        new_position[0] = 2.0 * self.position[0] - self.previous_position[0] + self.acceleration[0] * DT.powi(2);
-        new_position[1] = 2.0 * self.position[1] - self.previous_position[1] + self.acceleration[1] * DT.powi(2);
+        new_position[0] = 2.0 * self.position[0] - self.previous_position[0] + self.acceleration[0] * delta_t.powi(2);
+        new_position[1] = 2.0 * self.position[1] - self.previous_position[1] + self.acceleration[1] * delta_t.powi(2);
 
         self.previous_position = self.position;
         self.position = new_position;
@@ -96,27 +99,40 @@ fn vector_to_components(vector: f64, theta: f64) -> [f64; 2] {
     components
 }
 
-fn start() -> Vec<Particle> {
-    vec![
-        Particle::new([0.0, 0.0], [0.0, 0.0], 597.2, DT),      // Earth
-        Particle::new([384.4, 0.0], [0.0, 0.01019], 7.348, DT), // Moon
-    ]
+fn create_particles(delta_t: f64) -> Vec<Particle> {
+    let mut rng = thread_rng();
+    let list = vec![
+        // earth & moon
+        // Particle::new([0.0, 0.0], [0.0, 0.0], 597.2, delta_t),      // Earth
+        // Particle::new([384.4, 0.0], [0.0, 0.01019], 7.348, delta_t), // Moon
+
+        // 3 body
+        Particle::new([rng.gen_range(-200.0..200.0), rng.gen_range(-200.0..200.0)], [0.0, 0.0], 597.2, delta_t),
+        Particle::new([rng.gen_range(-200.0..200.0), rng.gen_range(-200.0..200.0)], [0.0, 0.0], 597.2, delta_t),
+        Particle::new([rng.gen_range(-200.0..200.0), rng.gen_range(-200.0..200.0)], [0.0, 0.0], 597.2, delta_t),
+    ];
+    println!("------------------------------------");
+    return list;
 }
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let g_scaled = 6.674e-5;
+    let g_scaled = 6.674e-5;//6.674e-5;
+    let mut time = 0.0;
+    let mut dt = 100.0;
+
     let scale_factor = 0.5;
 
     // Create particles
-    let mut particles = start();
+    let mut particles = create_particles(dt);
 
     loop {
         clear_background(BLACK);
         
         if is_key_pressed(KeyCode::R){
             PARTICLE_ID_COUNTER.store(1, Ordering::SeqCst);
-            particles = start();
+            time = 0.0;
+            particles = create_particles(dt);
         }
 
         // Update particles and compute forces
@@ -127,7 +143,8 @@ async fn main() {
                     let dis = distance(particles[i].position, particles[j].position);
                     let angle = points_to_horizontal_angle(particles[j].position, particles[i].position);
 
-                    let g_force = (g_scaled * particles[i].mass * particles[j].mass) / dis.powi(2);
+                    let epsilon: f64 = 1.0; // Softening constant
+                    let g_force = (g_scaled * particles[i].mass * particles[j].mass) / (dis.powi(2) + epsilon.powi(2));
                     let g_components = vector_to_components(g_force, angle);
 
                     particles[i].force[0] += g_components[0];
@@ -136,8 +153,9 @@ async fn main() {
             }
         }
 
+
         for particle in &mut particles {
-            particle.update();
+            particle.update(dt);
         }
 
         // Draw particles
@@ -155,7 +173,16 @@ async fn main() {
             );
         }
 
+        draw_text(
+            &format!("Time elapsed: {} seconds", time),
+            20.0,
+            20.0,
+            16.0,
+            YELLOW,
+        );
+
         // Draw frame
+        time += dt;
         next_frame().await;
     }
 }
