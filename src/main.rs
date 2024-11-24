@@ -163,5 +163,6 @@ fn main() {
             .width(1200)    // Set a default width
             .height(800),   // Set a default height
     );
+
     plot.write_html("output.html");
 }
