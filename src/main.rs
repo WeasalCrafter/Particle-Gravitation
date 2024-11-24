@@ -27,7 +27,7 @@ struct Particle {
 impl Particle {
     fn new(initial_position: [f64; 2], initial_velocity: [f64; 2], mass: f64, time_step: f64) -> Self {
         let id = PARTICLE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-        println!("Particle {} initial: x={:.2} y={:.2} ", id, initial_position[0], initial_position[1]);
+        //println!("Particle {} initial: x={:.2} y={:.2} ", id, initial_position[0], initial_position[1]);
 
         let mut previous_position = [initial_position[0], initial_position[1]];
         previous_position[0] -= initial_velocity[0] * time_step;
@@ -103,21 +103,21 @@ fn create_particles(delta_t: f64) -> Vec<Particle> {
     let mut rng = thread_rng();
     let list = vec![
         // earth & moon
-        // Particle::new([0.0, 0.0], [0.0, 0.0], 597.2, delta_t),      // Earth
-        // Particle::new([384.4, 0.0], [0.0, 0.01019], 7.348, delta_t), // Moon
+        Particle::new([0.0, 0.0], [0.0, 0.0], 597.2, delta_t),      // Earth
+        Particle::new([384.4, 0.0], [0.0, 0.01019], 7.348, delta_t), // Moon
 
         // 3 body
-        Particle::new([rng.gen_range(-200.0..200.0), rng.gen_range(-200.0..200.0)], [0.0, 0.0], 597.2, delta_t),
-        Particle::new([rng.gen_range(-200.0..200.0), rng.gen_range(-200.0..200.0)], [0.0, 0.0], 597.2, delta_t),
-        Particle::new([rng.gen_range(-200.0..200.0), rng.gen_range(-200.0..200.0)], [0.0, 0.0], 597.2, delta_t),
+        // Particle::new([rng.gen_range(-200.0..200.0), rng.gen_range(-200.0..200.0)], [0.0, 0.0], 597.2, delta_t),
+        // Particle::new([rng.gen_range(-200.0..200.0), rng.gen_range(-200.0..200.0)], [0.0, 0.0], 597.2, delta_t),
+        // Particle::new([rng.gen_range(-200.0..200.0), rng.gen_range(-200.0..200.0)], [0.0, 0.0], 597.2, delta_t),
     ];
-    println!("------------------------------------");
+    //println!("------------------------------------");
     return list;
 }
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let g_scaled = 6.674e-5;//6.674e-5;
+    let g_scaled = 6.674e-5;
     let mut time = 0.0;
     let mut dt = 100.0;
 
@@ -174,7 +174,7 @@ async fn main() {
         }
 
         draw_text(
-            &format!("Time elapsed: {} seconds", time),
+            &format!("{} frames elapsed", time),
             20.0,
             20.0,
             16.0,
