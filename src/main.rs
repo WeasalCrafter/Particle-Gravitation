@@ -1,13 +1,14 @@
+mod models;
+use models::{solar_system, earth_moon_system};
+
 use macroquad::prelude::*;
-use ::rand::prelude::{thread_rng,Rng}; // Import rand prelude for RNG
-use std::sync::atomic::{AtomicI32, Ordering};
 use std::f64::consts::PI;
 
-static PARTICLE_ID_COUNTER: AtomicI32 = AtomicI32::new(1);
+static G_CONSTANT: f64 = 6.674e-11;
 
 fn window_conf() -> Conf {
     Conf {
-        window_title: "Particle Simulation".to_owned(),
+        window_title: "Physics Simulation".to_owned(),
         window_width: 800,  // Adjust the window width
         window_height: 800, // Adjust the window height
         fullscreen: false,
@@ -15,33 +16,37 @@ fn window_conf() -> Conf {
     }
 }
 
+#[derive(Clone)]
 struct Particle {
-    id: i32,
     position: [f64; 2],            // meters
     previous_position: [f64; 2],   // meters
     acceleration: [f64; 2],        // m/s^2
     force: [f64; 2],               // newtons
     mass: f64,                     // kilograms
+    name: String,
+}
+
+struct Model {
+    particles: Vec<Particle>, // List of particles
+    delta_t: f64,             // Time step
+    scale_factor: f32,        // Scale factor
+    g_constant: f64,          // Constant for G
+    name: String,             // Model name
 }
 
 impl Particle {
-    fn new(initial_position: [f64; 2], initial_velocity: [f64; 2], mass: f64, time_step: f64) -> Self {
-        let id = PARTICLE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-        //println!("Particle {} initial: x={:.2} y={:.2} ", id, initial_position[0], initial_position[1]);
-
+    fn new(initial_position: [f64; 2], initial_velocity: [f64; 2], mass: f64, time_step: f64, name: String) -> Self {
         let mut previous_position = [initial_position[0], initial_position[1]];
         previous_position[0] -= initial_velocity[0] * time_step;
         previous_position[1] -= initial_velocity[1] * time_step;
 
-        let offset = 30.0 + id as f32 * 15.0;
-
         Particle {
-            id,
             position: initial_position,
             previous_position,
             acceleration: [0.0, 0.0],
             force: [0.0, 0.0],
             mass,
+            name,
         }
     }
 
@@ -55,10 +60,6 @@ impl Particle {
 
         self.previous_position = self.position;
         self.position = new_position;
-    }
-
-    fn destroy(&mut self) {
-        self.destroy();
     }
 }
 
@@ -99,90 +100,122 @@ fn vector_to_components(vector: f64, theta: f64) -> [f64; 2] {
     components
 }
 
-fn create_particles(delta_t: f64) -> Vec<Particle> {
-    let mut rng = thread_rng();
-    let list = vec![
-        // earth & moon
-        Particle::new([0.0, 0.0], [0.0, 0.0], 597.2, delta_t),      // Earth
-        Particle::new([384.4, 0.0], [0.0, 0.01019], 7.348, delta_t), // Moon
-
-        // 3 body
-        // Particle::new([rng.gen_range(-200.0..200.0), rng.gen_range(-200.0..200.0)], [0.0, 0.0], 597.2, delta_t),
-        // Particle::new([rng.gen_range(-200.0..200.0), rng.gen_range(-200.0..200.0)], [0.0, 0.0], 597.2, delta_t),
-        // Particle::new([rng.gen_range(-200.0..200.0), rng.gen_range(-200.0..200.0)], [0.0, 0.0], 597.2, delta_t),
-    ];
-    //println!("------------------------------------");
-    return list;
-}
-
 #[macroquad::main(window_conf)]
 async fn main() {
-    let g_scaled = 6.674e-5;
+    let mut selected_model: Model = solar_system();
+    let mut dt = selected_model.delta_t;
+    let mut scale_factor = selected_model.scale_factor;
+    let mut particles = selected_model.particles.clone();
+    let mut g_constant = selected_model.g_constant;
+
     let mut time = 0.0;
-    let mut dt = 100.0;
-
-    let scale_factor = 0.5;
-
-    // Create particles
-    let mut particles = create_particles(dt);
+    let mut paused = true;
 
     loop {
         clear_background(BLACK);
-        
-        if is_key_pressed(KeyCode::R){
-            PARTICLE_ID_COUNTER.store(1, Ordering::SeqCst);
+        if is_key_pressed(KeyCode::Space){ // Pause
+            paused = !paused;
+        }
+
+        if is_key_pressed(KeyCode::Key1){ // Select model 1
+            selected_model = solar_system();
+            dt = selected_model.delta_t;
+            g_constant = selected_model.g_constant;
+            scale_factor = selected_model.scale_factor;
+            particles = selected_model.particles.clone();
             time = 0.0;
-            particles = create_particles(dt);
+            paused = true;
+        }
+        if is_key_pressed(KeyCode::Key2){ // Select model 2
+            selected_model = earth_moon_system();
+            dt = selected_model.delta_t;
+            g_constant = selected_model.g_constant;
+            scale_factor = selected_model.scale_factor;
+            particles = selected_model.particles.clone();
+            time = 0.0;
+            paused = true;
+        }
+
+        if is_key_pressed(KeyCode::R){ // Reset
+            time = 0.0;
+            particles = selected_model.particles.clone();
+            paused = true;
+        }
+
+        if is_key_pressed(KeyCode::RightBracket){ // Zoom in
+            scale_factor *= 1.1;
+        }
+        if is_key_pressed(KeyCode::LeftBracket){ // Zoom out
+            scale_factor *= 0.9;
         }
 
         // Update particles and compute forces
-        for i in 0..particles.len() {
-            particles[i].force = [0.0, 0.0];
-            for j in 0..particles.len() {
-                if i != j {
-                    let dis = distance(particles[i].position, particles[j].position);
-                    let angle = points_to_horizontal_angle(particles[j].position, particles[i].position);
+        if !paused {
+            for i in 0..particles.len() {
+                particles[i].force = [0.0, 0.0];
+                for j in 0..particles.len() {
+                    if i != j {
+                        let dis = distance(particles[i].position, particles[j].position);
+                        let angle = points_to_horizontal_angle(particles[j].position, particles[i].position);
 
-                    let epsilon: f64 = 1.0; // Softening constant
-                    let g_force = (g_scaled * particles[i].mass * particles[j].mass) / (dis.powi(2) + epsilon.powi(2));
-                    let g_components = vector_to_components(g_force, angle);
+                        let epsilon: f64 = 1.0; // Softening constant
+                        let g_force = (g_constant * particles[i].mass * particles[j].mass) / (dis.powi(2) + epsilon.powi(2));
+                        let g_components = vector_to_components(g_force, angle);
 
-                    particles[i].force[0] += g_components[0];
-                    particles[i].force[1] += g_components[1];
+                        particles[i].force[0] += g_components[0];
+                        particles[i].force[1] += g_components[1];
+                    }
                 }
+                particles[i].update(dt);
             }
+            time += dt;
         }
-
-
-        for particle in &mut particles {
-            particle.update(dt);
-        }
-
+        draw_text(
+            &format!("Selected Model: {:#}", selected_model.name),
+            20.0,
+            20.0,
+            16.0,
+            YELLOW,
+        );
+        draw_text(
+            &format!("{} frames elapsed", time),
+            20.0,
+            50.0,
+            16.0,
+            YELLOW,
+        );
+        // Vertical
+        draw_line(
+            0.0,
+            screen_height()/2.0,
+            screen_width(),
+            screen_height()/2.0,
+            0.5,
+            GRAY,
+        );
+        // Horizontal
+        draw_line(
+            screen_width()/2.0,
+            0.0,
+            screen_width()/2.0,
+            screen_width(),
+            0.5,
+            GRAY,
+        );
         // Draw particles
-        for particle in &particles {
-            let screen_x = particle.position[0] as f32 * scale_factor + screen_width() / 2.0; // Center the screen
-            let screen_y = particle.position[1] as f32 * scale_factor + screen_height() / 2.0;
-
+        for i in 0..particles.len() {
+            let screen_x = particles[i].position[0] as f32 * scale_factor + screen_width() / 2.0; // Center the screen
+            let screen_y = particles[i].position[1] as f32 * scale_factor + screen_height() / 2.0;
             draw_circle(screen_x, screen_y, 5.0, WHITE); // Draw particle
             draw_text(
-                &format!("Particle {}", particle.id),
+                &format!("{}", particles[i].name),
                 screen_x + 10.0,
                 screen_y + 10.0,
                 16.0,
                 GREEN,
             );
         }
-
-        draw_text(
-            &format!("{} frames elapsed", time),
-            20.0,
-            20.0,
-            16.0,
-            YELLOW,
-        );
-
         // Draw frame
-        time += dt;
         next_frame().await;
     }
 }
