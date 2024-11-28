@@ -1,11 +1,16 @@
 mod models;
-use models::{solar_system, earth_moon_system};
+use models::*;
+mod util;
+use util::*;
+mod structs;
+use structs::*;
+mod interactions;
+use interactions::*;
 
 use macroquad::prelude::*;
-use std::f64::consts::PI;
-
-static G_CONSTANT: f64 = 6.674e-11;
-
+use std::convert::Into;
+use ::rand::Rng;
+use ::rand::thread_rng;
 fn window_conf() -> Conf {
     Conf {
         window_title: "Physics Simulation".to_owned(),
@@ -16,160 +21,246 @@ fn window_conf() -> Conf {
     }
 }
 
-#[derive(Clone)]
-struct Particle {
-    position: [f64; 2],            // meters
-    previous_position: [f64; 2],   // meters
-    acceleration: [f64; 2],        // m/s^2
-    force: [f64; 2],               // newtons
-    mass: f64,                     // kilograms
-    name: String,
-}
-
-struct Model {
-    particles: Vec<Particle>, // List of particles
-    delta_t: f64,             // Time step
-    scale_factor: f32,        // Scale factor
-    g_constant: f64,          // Constant for G
-    name: String,             // Model name
-}
-
-impl Particle {
-    fn new(initial_position: [f64; 2], initial_velocity: [f64; 2], mass: f64, time_step: f64, name: String) -> Self {
-        let mut previous_position = [initial_position[0], initial_position[1]];
-        previous_position[0] -= initial_velocity[0] * time_step;
-        previous_position[1] -= initial_velocity[1] * time_step;
-
-        Particle {
-            position: initial_position,
-            previous_position,
-            acceleration: [0.0, 0.0],
-            force: [0.0, 0.0],
-            mass,
-            name,
-        }
-    }
-
-    fn update(&mut self, delta_t: f64) {
-        self.acceleration[0] = self.force[0] / self.mass;
-        self.acceleration[1] = self.force[1] / self.mass;
-
-        let mut new_position = [0.0, 0.0];
-        new_position[0] = 2.0 * self.position[0] - self.previous_position[0] + self.acceleration[0] * delta_t.powi(2);
-        new_position[1] = 2.0 * self.position[1] - self.previous_position[1] + self.acceleration[1] * delta_t.powi(2);
-
-        self.previous_position = self.position;
-        self.position = new_position;
-    }
-}
-
-fn distance(point_a: [f64; 2], point_b: [f64; 2]) -> f64 {
-    ((point_a[0] - point_b[0]).powi(2) + (point_a[1] - point_b[1]).powi(2)).sqrt()
-}
-
-fn points_to_horizontal_angle(point_a: [f64; 2], point_b: [f64; 2]) -> f64 {
-    let dx = point_a[0] - point_b[0];
-    let dy = point_a[1] - point_b[1];
-    let mut angle = dy.atan2(dx);
-    if angle < 0.0 {
-        angle += 2.0 * PI;
-    }
-    angle
-}
-
-fn vector_to_components(vector: f64, theta: f64) -> [f64; 2] {
-    let mut components = [0.0, 0.0];
-    let mut direction = [1.0, 1.0];
-    let mut ref_angle = 0.0;
-
-    if theta < 1.0 / 2.0 * PI {
-        ref_angle = theta;
-        direction = [1.0, 1.0]; // 1st quadrant, +x +y
-    } else if theta < PI {
-        ref_angle = PI - theta;
-        direction = [-1.0, 1.0]; // 2nd quadrant, -x +y
-    } else if theta < 3.0 / 2.0 * PI {
-        ref_angle = theta - PI;
-        direction = [-1.0, -1.0]; // 3rd quadrant, -x -y
-    } else if theta < 2.0 * PI {
-        ref_angle = 2.0 * PI - theta;
-        direction = [1.0, -1.0]; // 4th quadrant, +x -y
-    }
-    components[0] = direction[0] * vector * ref_angle.cos();
-    components[1] = direction[1] * vector * ref_angle.sin();
-    components
-}
-
 #[macroquad::main(window_conf)]
 async fn main() {
-    let mut selected_model: Model = solar_system();
-    let mut dt = selected_model.delta_t;
+    let mut selected_model: Model = blank_system();
     let mut scale_factor = selected_model.scale_factor;
-    let mut particles = selected_model.particles.clone();
+    let mut scale_ref = scale_factor;
     let mut g_constant = selected_model.g_constant;
 
-    let mut time = 0.0;
+    let mut elapsed_time = 0.0;
     let mut paused = true;
+    let mut change_simulation = false;
+
+    let delta = 1.0;
+
+    let mut custom_velocity = [0.0, 0.0];
+    let mut change_velocity = false;
+
+    let mut custom_mass = 1.0;
+    let mut change_mass = false;
 
     loop {
         clear_background(BLACK);
-        if is_key_pressed(KeyCode::Space){ // Pause
-            paused = !paused;
+
+        // Zoom and Speed
+        if is_key_pressed(KeyCode::RightBracket) {
+            if !is_key_down(KeyCode::LeftShift) {
+                scale_factor = scale_factor * (11f32 / 10f32).powi(1);
+            }else{
+                selected_model.change_speed(selected_model.delta_t * (21f64 / 20f64).powi(1));
+            }
+        }
+        if is_key_pressed(KeyCode::LeftBracket) {
+            if !is_key_down(KeyCode::LeftShift) {
+                scale_factor = scale_factor * (11f32 / 10f32).powi(-1);
+            } else{
+                selected_model.change_speed(selected_model.delta_t * (21f64 / 20f64).powi(-1));
+            }
         }
 
-        if is_key_pressed(KeyCode::Key1){ // Select model 1
-            selected_model = solar_system();
-            dt = selected_model.delta_t;
-            g_constant = selected_model.g_constant;
-            scale_factor = selected_model.scale_factor;
-            particles = selected_model.particles.clone();
-            time = 0.0;
-            paused = true;
-        }
-        if is_key_pressed(KeyCode::Key2){ // Select model 2
-            selected_model = earth_moon_system();
-            dt = selected_model.delta_t;
-            g_constant = selected_model.g_constant;
-            scale_factor = selected_model.scale_factor;
-            particles = selected_model.particles.clone();
-            time = 0.0;
-            paused = true;
-        }
+        // Calculate scaled mouse position
+        let mut world_mouse_pos = screen_to_world(mouse_position(),scale_factor);
+        world_mouse_pos[0] = world_mouse_pos[0].round();
+        world_mouse_pos[1] = world_mouse_pos[1].round();
 
-        if is_key_pressed(KeyCode::R){ // Reset
-            time = 0.0;
-            particles = selected_model.particles.clone();
-            paused = true;
-        }
-
-        if is_key_pressed(KeyCode::RightBracket){ // Zoom in
-            scale_factor *= 1.1;
-        }
-        if is_key_pressed(KeyCode::LeftBracket){ // Zoom out
-            scale_factor *= 0.9;
-        }
-
-        // Update particles and compute forces
-        if !paused {
-            for i in 0..particles.len() {
-                particles[i].force = [0.0, 0.0];
-                for j in 0..particles.len() {
-                    if i != j {
-                        let dis = distance(particles[i].position, particles[j].position);
-                        let angle = points_to_horizontal_angle(particles[j].position, particles[i].position);
-
-                        let epsilon: f64 = 1.0; // Softening constant
-                        let g_force = (g_constant * particles[i].mass * particles[j].mass) / (dis.powi(2) + epsilon.powi(2));
-                        let g_components = vector_to_components(g_force, angle);
-
-                        particles[i].force[0] += g_components[0];
-                        particles[i].force[1] += g_components[1];
+        if is_key_pressed(KeyCode::Up) {
+            if !is_key_down(KeyCode::LeftShift){
+                if change_velocity {
+                    custom_velocity[1] += delta;
+                }
+                if change_mass {
+                    custom_mass += delta;
+                    if custom_mass == 0.0 {
+                        custom_mass = 0.1;
                     }
                 }
-                particles[i].update(dt);
+            }else{
+                if change_velocity {
+                    custom_velocity[1] += delta / 10.0;
+                }
+                if change_mass {
+                    custom_mass += delta / 10.0;
+                    if custom_mass == 0.0 {
+                        custom_mass = 0.1;
+                    }
+                }
             }
-            time += dt;
         }
+        if is_key_pressed(KeyCode::Down) {
+            if !is_key_down(KeyCode::LeftShift){
+                if change_velocity {
+                    custom_velocity[1] -= delta;
+                }
+                if change_mass {
+                    custom_mass -= delta;
+                    if custom_mass == 0.0 {
+                        custom_mass = -0.1;
+                    }
+                }
+            }else{
+                if change_velocity {
+                    custom_velocity[1] -= delta / 10.0;
+                }
+                if change_mass {
+                    custom_mass -= delta / 10.0;
+                    if custom_mass == 0.0 {
+                        custom_mass = -0.1;
+                    }
+                }
+            }
+        }
+        if is_key_pressed(KeyCode::Left) {
+            if !is_key_down(KeyCode::LeftShift){
+                if change_velocity {
+                    custom_velocity[0] -= 1.0;
+                }
+            }else{
+                if change_velocity {
+                    custom_velocity[0] -= 0.1;
+                }
+            }
+        }
+        if is_key_pressed(KeyCode::Right) {
+            if !is_key_down(KeyCode::LeftShift){
+                if change_velocity {
+                    custom_velocity[0] += 1.0;
+                }
+            }else{
+                if change_velocity {
+                    custom_velocity[0] += 0.1;
+                }
+            }
+        }
+
+        if is_mouse_button_pressed(MouseButton::Right) {
+            selected_model.particles.push(
+                Particle::new(
+                    world_mouse_pos,
+                    custom_velocity,
+                    custom_mass,
+                    5.0,
+                    selected_model.delta_t,
+                    "/".into()
+                )
+            );
+        } // Custom Particle
+        if is_mouse_button_pressed(MouseButton::Left) {
+            let mut rng = thread_rng();
+            let mut random_mass: f64 = rng.gen_range(0.0..10.0);
+
+            random_mass = random_mass.trunc();
+            if random_mass == 0.0 { random_mass = 1.0; }
+
+            selected_model.particles.push(
+                Particle::new(
+                    world_mouse_pos,
+                    [0.0, 0.0],
+                    random_mass,
+                    5.0,
+                    selected_model.delta_t,
+                    "/".into()
+                )
+            );
+        } // Random Particle
+
+        if is_key_pressed(KeyCode::Space) {
+            paused = !paused;
+        } // Toggle Pause
+
+        if is_key_pressed(KeyCode::Key1){ // Select model 1
+            if !is_key_down(KeyCode::LeftShift) {
+                if is_key_down(KeyCode::LeftControl) {
+                    selected_model = blank_system();
+                    change_simulation = true;
+                }
+            }else{
+                change_mass = !change_mass;
+                change_velocity = false;
+            }
+        } // Shift+1 -> Select Mass | Left Ctrl+1 -> Select Model 1
+        if is_key_pressed(KeyCode::Key2) { // Select model 2
+            if !is_key_down(KeyCode::LeftShift) {
+                if is_key_down(KeyCode::LeftControl) {
+                    selected_model = solar_system();
+                    change_simulation = true;
+                }
+            }else{
+                change_velocity = !change_velocity;
+                change_mass = false;
+            }
+        } // Shift+1 -> Select Velocity | Left Ctrl+2 -> Select Model 2
+        if is_key_pressed(KeyCode::Key3) { // Select model 3
+            if is_key_down(KeyCode::LeftControl) {
+                selected_model = earth_moon_system();
+                change_simulation = true;
+            }
+            change_velocity = false;
+            change_mass = false;
+        } // Left Ctrl+2 -> Select Model 3
+
+        if change_simulation {
+            g_constant = selected_model.g_constant;
+            scale_factor = selected_model.scale_factor;
+            selected_model.particles = selected_model.particles.clone();
+            scale_ref = scale_factor;
+            elapsed_time = 0.0;
+            paused = true;
+            change_simulation = false;
+        } // Update simulation parameters
+
+        if is_key_pressed(KeyCode::R) {
+            selected_model.reset();
+            elapsed_time = 0.0;
+            paused = true;
+        } // Reset simulation
+
+        if !paused {
+            for i in 0..selected_model.particles.len() {
+                selected_model.particles[i].force = [0.0, 0.0];
+                for j in 0..selected_model.particles.len() {
+                    if i != j {
+                        let distance = distance(selected_model.particles[i].position,selected_model.particles[j].position);
+
+                        let mut g_components = resolve_gravitation_force(
+                            g_constant,
+                            &selected_model.particles[i],
+                            &selected_model.particles[j]
+                        );
+
+                        if distance <= selected_model.particles[i].radius + selected_model.particles[j].radius {
+                            g_components = [0.0,0.0];
+                        }
+
+                        selected_model.particles[i].force[0] += g_components[0];
+                        selected_model.particles[i].force[1] += g_components[1];
+
+                        // check for collisions
+                        if check_collision(&selected_model.particles[i], &selected_model.particles[j]) {
+                            let impulse = resolve_collision(
+                                &selected_model.particles[i],
+                                &selected_model.particles[j],
+                                selected_model.restitution,
+                                selected_model.delta_t
+                            );
+                            selected_model.particles[i].previous_position[0] -= impulse[0];
+                            selected_model.particles[i].previous_position[1] -= impulse[1];
+                            selected_model.particles[j].previous_position[0] -= impulse[2];
+                            selected_model.particles[j].previous_position[1] -= impulse[3];
+                        }
+                    }
+
+                }
+            }
+        }
+
+        if !paused {
+            for i in 0..selected_model.particles.len() {
+                selected_model.particles[i].update(selected_model.delta_t);
+            }
+            elapsed_time += selected_model.delta_t;
+        }
+
         draw_text(
             &format!("Selected Model: {:#}", selected_model.name),
             20.0,
@@ -177,45 +268,55 @@ async fn main() {
             16.0,
             YELLOW,
         );
+
+        if paused {
+            draw_text(&format!("Frames elapsed: {}", elapsed_time.trunc()), 20.0, 50.0, 16.0, RED);
+        } else {
+            draw_text(&format!("Frames elapsed: {}", elapsed_time.trunc()), 20.0, 50.0, 16.0, YELLOW);
+        }
         draw_text(
-            &format!("{} frames elapsed", time),
+            &format!("Number of particles: {}", selected_model.particles.len()),
             20.0,
-            50.0,
+            80.0,
             16.0,
             YELLOW,
         );
-        // Vertical
-        draw_line(
-            0.0,
-            screen_height()/2.0,
-            screen_width(),
-            screen_height()/2.0,
-            0.5,
-            GRAY,
-        );
-        // Horizontal
-        draw_line(
-            screen_width()/2.0,
-            0.0,
-            screen_width()/2.0,
-            screen_width(),
-            0.5,
-            GRAY,
-        );
-        // Draw particles
-        for i in 0..particles.len() {
-            let screen_x = particles[i].position[0] as f32 * scale_factor + screen_width() / 2.0; // Center the screen
-            let screen_y = particles[i].position[1] as f32 * scale_factor + screen_height() / 2.0;
-            draw_circle(screen_x, screen_y, 5.0, WHITE); // Draw particle
-            draw_text(
-                &format!("{}", particles[i].name),
-                screen_x + 10.0,
-                screen_y + 10.0,
-                16.0,
-                GREEN,
-            );
+
+        if is_key_down(KeyCode::LeftShift) {
+            draw_text(&format!("Delta: {:?}", round_to_place(delta / 10.0,2)), 20.0, 110.0, 16.0, RED);
+        }else{
+            draw_text(&format!("Delta: {:?}", round_to_place(delta,2)), 20.0, 110.0, 16.0, RED, );
         }
-        // Draw frame
+
+        if !change_mass {
+            draw_text(&format!("Mass: {:?}", round_to_place(custom_mass,2)), 20.0, 140.0, 16.0, YELLOW, );
+        } else {
+            draw_text(&format!("Mass: {:?}", round_to_place(custom_mass,2)), 20.0, 140.0, 16.0, RED, );
+        }
+
+        if !change_velocity {
+            draw_text(&format!("Velocity: {:?}", [round_to_place(custom_velocity[0],2),round_to_place(custom_velocity[1],2)]), 20.0, 170.0, 16.0, YELLOW, );
+        } else {
+            draw_text(&format!("Velocity: {:?}", [round_to_place(custom_velocity[0],2),round_to_place(custom_velocity[1],2)]), 20.0, 170.0, 16.0, RED, );
+        }
+
+        draw_text(&format!("Restitution Value: {:.2}", selected_model.restitution), 20.0, screen_height() - 190.0, 16.0, RED);
+        draw_text(&format!("Zoom: {}%", round_to_place((scale_factor/ scale_ref * 100.0).into(),2)), 20.0, screen_height() - 160.0, 16.0, RED);
+        draw_text(&format!("Time Step: {:.3}", selected_model.delta_t), 20.0, screen_height() - 130.0, 16.0, RED);
+        draw_text(&format!("({}% of default: {:.3})",
+                           round_to_place((selected_model.delta_t/selected_model.default_delta_t)*100.0,2),
+                           selected_model.default_delta_t),
+                  20.0,
+                  screen_height() - 100.0,
+                  16.0,
+                  RED
+        );
+
+        draw_text(&format!("Mouse X: {}", world_mouse_pos[0]), 20.0, screen_height() - 70.0, 16.0, RED);
+        draw_text(&format!("Mouse Y: {}", world_mouse_pos[1]), 20.0, screen_height() - 40.0, 16.0, RED);
+
+
+        selected_model.draw(scale_factor);
         next_frame().await;
     }
 }
