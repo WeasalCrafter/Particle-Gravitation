@@ -1,3 +1,4 @@
+use std::f32::consts::PI;
 use macroquad::color::{Color, WHITE};
 use macroquad::prelude::{draw_circle, draw_text, screen_height, screen_width};
 
@@ -25,10 +26,14 @@ pub(crate) struct Model {
 }
 
 impl Particle {
-    pub(crate) fn new(initial_position: [f64; 2], initial_velocity: [f64; 2], mass: f64, radius: f64, time_step: f64, name: String) -> Self {
+    pub(crate) fn new(initial_position: [f64; 2], initial_velocity: [f64; 2], mass: f64, time_step: f64, name: String) -> Self {
         let mut previous_position = [initial_position[0], initial_position[1]];
         previous_position[0] -= initial_velocity[0] * time_step;
         previous_position[1] -= initial_velocity[1] * time_step;
+
+        let density = 0.318;
+        let area = mass / density;
+        let radius = (area / PI as f64).sqrt();
 
         Particle {
             position: initial_position,
@@ -88,7 +93,6 @@ impl Model{
                 current_particles[i].position,
                 current_velocity,
                 current_particles[i].mass,
-                current_particles[i].radius,
                 delta_t,
                 current_particles[i].name.clone(),
             );

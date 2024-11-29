@@ -139,7 +139,6 @@ async fn main() {
                     world_mouse_pos,
                     custom_velocity,
                     custom_mass,
-                    5.0,
                     selected_model.delta_t,
                     "/".into()
                 )
@@ -157,7 +156,6 @@ async fn main() {
                     world_mouse_pos,
                     [0.0, 0.0],
                     random_mass,
-                    5.0,
                     selected_model.delta_t,
                     "/".into()
                 )
@@ -216,32 +214,80 @@ async fn main() {
         } // Reset simulation
 
         if !paused {
+            // Phase 1: Resolve overlaps
+            for i in 0..selected_model.particles.len() {
+                for j in (i + 1)..selected_model.particles.len() {
+                    let distance = distance(
+                        selected_model.particles[i].position,
+                        selected_model.particles[j].position,
+                    );
+
+                    if distance < selected_model.particles[i].radius + selected_model.particles[j].radius {
+                        let overlap = selected_model.particles[i].radius
+                            + selected_model.particles[j].radius
+                            - distance;
+
+                        if overlap > 0.0 {
+                            let total_mass = selected_model.particles[i].mass + selected_model.particles[j].mass;
+                            let mass_ratio_i = selected_model.particles[j].mass / total_mass;
+                            let mass_ratio_j = selected_model.particles[i].mass / total_mass;
+
+                            // Calculate separation vector
+                            let mut separation_vector = [
+                                selected_model.particles[j].position[0] - selected_model.particles[i].position[0],
+                                selected_model.particles[j].position[1] - selected_model.particles[i].position[1],
+                            ];
+
+                            let separation_magnitude = (separation_vector[0].powi(2) + separation_vector[1].powi(2)).sqrt();
+                            separation_vector[0] /= separation_magnitude;
+                            separation_vector[1] /= separation_magnitude;
+
+                            // Apply separation proportional to mass
+                            selected_model.particles[i].position[0] -= separation_vector[0] * overlap * mass_ratio_i;
+                            selected_model.particles[i].position[1] -= separation_vector[1] * overlap * mass_ratio_i;
+                            selected_model.particles[j].position[0] += separation_vector[0] * overlap * mass_ratio_j;
+                            selected_model.particles[j].position[1] += separation_vector[1] * overlap * mass_ratio_j;
+                        }
+
+                    }
+                }
+            }
+
+            // Phase 2: Apply gravitational forces and resolve collisions
             for i in 0..selected_model.particles.len() {
                 selected_model.particles[i].force = [0.0, 0.0];
+
                 for j in 0..selected_model.particles.len() {
                     if i != j {
-                        let distance = distance(selected_model.particles[i].position,selected_model.particles[j].position);
+                        let distance = distance(
+                            selected_model.particles[i].position,
+                            selected_model.particles[j].position,
+                        );
 
                         let mut g_components = resolve_gravitation_force(
                             g_constant,
                             &selected_model.particles[i],
-                            &selected_model.particles[j]
+                            &selected_model.particles[j],
                         );
 
+                        // Prevent gravitational forces for overlapping particles
                         if distance <= selected_model.particles[i].radius + selected_model.particles[j].radius {
-                            g_components = [0.0,0.0];
+                            g_components = [0.0, 0.0];
                         }
 
                         selected_model.particles[i].force[0] += g_components[0];
                         selected_model.particles[i].force[1] += g_components[1];
 
-                        // check for collisions
-                        if check_collision(&selected_model.particles[i], &selected_model.particles[j]) {
+                        // Handle collisions
+                        if check_collision(
+                            &selected_model.particles[i],
+                            &selected_model.particles[j],
+                        ) {
                             let impulse = resolve_collision(
                                 &selected_model.particles[i],
                                 &selected_model.particles[j],
                                 selected_model.restitution,
-                                selected_model.delta_t
+                                selected_model.delta_t,
                             );
                             selected_model.particles[i].previous_position[0] -= impulse[0];
                             selected_model.particles[i].previous_position[1] -= impulse[1];
@@ -249,17 +295,18 @@ async fn main() {
                             selected_model.particles[j].previous_position[1] -= impulse[3];
                         }
                     }
-
                 }
             }
         }
 
+        // Update particles
         if !paused {
             for i in 0..selected_model.particles.len() {
                 selected_model.particles[i].update(selected_model.delta_t);
             }
             elapsed_time += selected_model.delta_t;
         }
+
 
         draw_text(
             &format!("Selected Model: {:#}", selected_model.name),
@@ -300,7 +347,9 @@ async fn main() {
             draw_text(&format!("Velocity: {:?}", [round_to_place(custom_velocity[0],2),round_to_place(custom_velocity[1],2)]), 20.0, 170.0, 16.0, RED, );
         }
 
-        draw_text(&format!("Restitution Value: {:.2}", selected_model.restitution), 20.0, screen_height() - 190.0, 16.0, RED);
+        draw_text(&format!("Restitution Value: {:.2}", selected_model.restitution), 20.0, screen_height() - 210.0, 16.0, RED);
+        draw_text(&format!("G Constant: {}", selected_model.g_constant), 20.0, screen_height() - 190.0, 16.0, RED);
+
         draw_text(&format!("Zoom: {}%", round_to_place((scale_factor/ scale_ref * 100.0).into(),2)), 20.0, screen_height() - 160.0, 16.0, RED);
         draw_text(&format!("Time Step: {:.3}", selected_model.delta_t), 20.0, screen_height() - 130.0, 16.0, RED);
         draw_text(&format!("({}% of default: {:.3})",
