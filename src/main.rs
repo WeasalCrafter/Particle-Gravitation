@@ -305,7 +305,7 @@ async fn main() {
                 selected_model.particles[i].update(selected_model.delta_t);
             }
             elapsed_time += selected_model.delta_t;
-        }
+      }
 
 
         draw_text(

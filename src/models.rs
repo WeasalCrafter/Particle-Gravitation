@@ -124,9 +124,9 @@ pub(crate) fn earth_moon_system() -> Model {
     )
 }
 pub(crate) fn blank_system() -> Model {
-    let restitution = 0.75;
+    let restitution = 1.0;
     let delta_t = 1.0;
-    let scale_factor = 1.0;
+    let scale_factor = 20.0;
     let g_constant = 0.01;
     let do_collisions = true;
     let particles = vec![];
