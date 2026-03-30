@@ -26,14 +26,18 @@ pub(crate) struct Model {
 }
 
 impl Particle {
-    pub(crate) fn new(initial_position: [f64; 2], initial_velocity: [f64; 2], mass: f64, time_step: f64, name: String) -> Self {
+    pub(crate) fn new(initial_position: [f64; 2], initial_velocity: [f64; 2], mass: f64, time_step: f64, name: String, do_collisions: bool) -> Self {
         let mut previous_position = [initial_position[0], initial_position[1]];
         previous_position[0] -= initial_velocity[0] * time_step;
         previous_position[1] -= initial_velocity[1] * time_step;
 
-        let density = 0.318;
-        let area = mass / density;
-        let radius = (area / PI as f64).sqrt();
+        let radius = if do_collisions {
+            let density = 0.318;
+            let area = mass / density;
+            (area / PI as f64).sqrt()
+        } else {
+            5.0
+        };
 
         Particle {
             position: initial_position,
@@ -95,6 +99,7 @@ impl Model{
                 current_particles[i].mass,
                 delta_t,
                 current_particles[i].name.clone(),
+                self.do_collisions,
             );
             adjusted_particles.push(new_particle);
         }
@@ -111,7 +116,7 @@ impl Model{
             if self.do_collisions {
                 draw_circle(screen_x, screen_y, (self.particles[i].radius * scale_factor as f64) as f32, WHITE); // Draw particle
             }else{
-                draw_circle(screen_x, screen_y, self.particles[i].radius as f32, WHITE); // Draw particle
+                draw_circle(screen_x, screen_y, 5.0 as f32, WHITE); // Draw particle
             }
             if self.particles[i].name != "/".to_string() {
                 draw_text(

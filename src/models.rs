@@ -14,6 +14,7 @@ pub(crate) fn solar_system() -> Model {
                        1.989e30, // Mass of the Sun
                        delta_t,
                        String::from("Sun"),
+                       do_collisions,
         ),
         Particle::new( // Mercury
                        [4.6e10, 0.0], // Perihelion distance in meters
@@ -21,6 +22,7 @@ pub(crate) fn solar_system() -> Model {
                        3.285e23, // Mass of Mercury
                        delta_t,
                        String::from("Mercury"),
+                       do_collisions,
         ),
         Particle::new( // Venus
                        [1.0875e11, 0.0], // Average distance from Sun in meters
@@ -28,6 +30,7 @@ pub(crate) fn solar_system() -> Model {
                        4.867e24, // Mass of Venus
                        delta_t,
                        String::from("Venus"),
+                       do_collisions,
         ),
         Particle::new( // Earth
                        [1.4765e11, 0.0], // Average distance from Sun in meters
@@ -35,6 +38,7 @@ pub(crate) fn solar_system() -> Model {
                        5.972e24, // Mass of Earth
                        delta_t,
                        String::from("Earth"),
+                       do_collisions,
         ),
         Particle::new( // Mars
                        [2.279e11, 0.0], // Average distance from Sun in meters
@@ -42,6 +46,7 @@ pub(crate) fn solar_system() -> Model {
                        6.417e23, // Mass of Mars
                        delta_t,
                        String::from("Mars"),
+                       do_collisions,
         ),
         Particle::new( // Jupiter
                        [7.785e11, 0.0], // Average distance from Sun in meters
@@ -49,6 +54,7 @@ pub(crate) fn solar_system() -> Model {
                        1.898e27, // Mass of Jupiter
                        delta_t,
                        String::from("Jupiter"),
+                       do_collisions,
         ),
         Particle::new( // Saturn
                        [1.4335e12, 0.0], // Average distance from Sun in meters
@@ -56,6 +62,7 @@ pub(crate) fn solar_system() -> Model {
                        5.683e26, // Mass of Saturn
                        delta_t,
                        String::from("Saturn"),
+                       do_collisions,
         ),
         Particle::new( // Uranus
                        [2.8725e12, 0.0], // Average distance from Sun in meters
@@ -63,6 +70,7 @@ pub(crate) fn solar_system() -> Model {
                        8.681e25, // Mass of Uranus
                        delta_t,
                        String::from("Uranus"),
+                       do_collisions,
         ),
         Particle::new( // Neptune
                        [4.4951e12, 0.0], // Average distance from Sun in meters
@@ -70,6 +78,7 @@ pub(crate) fn solar_system() -> Model {
                        1.024e26, // Mass of Neptune
                        delta_t,
                        String::from("Neptune"),
+                       do_collisions,
         ),
         Particle::new( // Pluto (Dwarf Planet)
                        [5.9064e12, 0.0], // Average distance from Sun in meters
@@ -77,6 +86,7 @@ pub(crate) fn solar_system() -> Model {
                        1.309e22, // Mass of Pluto
                        delta_t,
                        String::from("Pluto"),
+                       do_collisions,
         ),
 
 
@@ -104,6 +114,7 @@ pub(crate) fn earth_moon_system() -> Model {
                        5.972e24, // Mass of Earth
                        delta_t,
                        String::from("Earth"),
+                       do_collisions,
         ),
         Particle::new( // Moon
                        [3.844e8, 0.0], // Average distance from Sun in meters
@@ -111,6 +122,7 @@ pub(crate) fn earth_moon_system() -> Model {
                        7.34767309e22, // Mass of Moon
                        delta_t,
                        String::from("Moon"),
+                       do_collisions,
         ),
     ];
     Model::new(

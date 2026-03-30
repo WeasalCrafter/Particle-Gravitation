@@ -140,7 +140,8 @@ async fn main() {
                     custom_velocity,
                     custom_mass,
                     selected_model.delta_t,
-                    "/".into()
+                    "/".into(),
+                    selected_model.do_collisions,
                 )
             );
         } // Custom Particle
@@ -157,7 +158,8 @@ async fn main() {
                     [0.0, 0.0],
                     random_mass,
                     selected_model.delta_t,
-                    "/".into()
+                    "/".into(),
+                    selected_model.do_collisions,
                 )
             );
         } // Random Particle
