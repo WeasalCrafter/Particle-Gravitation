@@ -5,11 +5,11 @@ Click <a href="https://loganfick.com/projects/particle">here</a> to view it on m
 
 This Rust project simulates the force of gravity based on Newton's law of gravitation on particles in space. In the code you can set constants like the gravitational constant, g, and create a system with defined masses, positions, and initial velocities of satelites.
 
-As an example I have created the Earth and the Moon, with their real masses and distances. The X and Y axis represent the objects position in a 2D plane and the positions update over time.
+As an example I have created a model of the solar system, with their real masses and distances. The X and Y axis represent the objects position in a 2D plane and the positions update over time.
 
 <div style="text-align: center; max-width: 100%; padding: 20px;">
-    <img src="./img/custom-particles.gif" height="260px">
-    <img src="./img/earth-moon.gif" height="260px">
+    <img src="./img/custom-particles.gif" height="280px">
+    <img src="./img/solar-system.gif" height="280px">
 </div>
 
 ### Installing
