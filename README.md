@@ -7,7 +7,8 @@ This Rust project simulates the force of gravity based on Newton's law of gravit
 
 As an example I have created the Earth and the Moon, with their real masses and distances. The X and Y axis represent the objects position in a 2D plane and the positions update over time.
 
-<img src="./img/thumbnail.png" width="400">
+<img src="./img/custom-particles.gif" width="400">
+<img src="./img/earth-moon.gif" width="400">
 
 ### Installing
 
